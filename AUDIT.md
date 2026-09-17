@@ -136,6 +136,48 @@ Repository audited: local `RGBBlocks-fork` repository on branch `1.21.1`.
 - Findings: current dedicated server startup reached `Done` in the 1.21.1 dev runtime.
 - Resolution: no issue-specific code change.
 
+## Rendering Compatibility Pass
+
+### Sources checked on 2026-09-17
+
+- Sodium: Modrinth lists current client-side Fabric/NeoForge/Quilt support and a NeoForge `mc1.21.1-0.8.13-neoforge` release for Minecraft 1.21.1.
+  - https://modrinth.com/mod/sodium
+  - https://modrinth.com/mod/sodium/version/mc1.21.1-0.8.13-neoforge
+- Iris: Modrinth lists current client-side Fabric/NeoForge/Quilt support and a NeoForge `1.8.12+1.21.1-neoforge` release for Minecraft 1.21.1 that requires Sodium.
+  - https://modrinth.com/mod/iris
+  - https://modrinth.com/mod/iris/version/1.8.12%2B1.21.1-neoforge
+- Embeddium: Modrinth lists client-side NeoForge support for Minecraft 1.21.1, including `1.0.15+mc1.21.1`, and documents it as a Sodium-derived renderer with extra mod-compatibility APIs and optional translucency sorting.
+  - https://modrinth.com/mod/embeddium
+  - https://modrinth.com/mod/embeddium/version/1.0.15%2Bmc1.21.1
+- Oculus: Modrinth currently lists Forge/NeoForge support only through Minecraft 1.20.1, so it is not a primary 1.21.1 NeoForge target for this fork.
+  - https://modrinth.com/mod/oculus
+- Complementary Reimagined and Photon both target Iris/OptiFine shader loading and list colored-lighting features. Photon documents voxel-based colored lighting as Iris-only, and Complementary's r5.2.2 changelog introduced Advanced Colored Lighting through Iris.
+  - https://modrinth.com/shader/complementary-reimagined
+  - https://modrinth.com/shader/complementary-unbound/version/r5.2.2
+  - https://modrinth.com/shader/photon-shader
+- `eclipseisoffline/iris-coloured-lights` is a shader library, not a NeoForge block API. It maps shader `block.properties` IDs to GLSL light colors and requires SSBO-capable shader support.
+  - https://github.com/eclipseisoffline/iris-coloured-lights
+
+### Local renderer API findings
+
+- NeoForge 21.1.73 still resolves block model `"render_type": "minecraft:translucent"` through `NamedRenderTypeManager` to the translucent block render type and layered translucent item render type.
+- Vanilla/NeoForge `ItemBlockRenderTypes` marks direct render-layer registration as deprecated; the recommended 1.21 path is model JSON `render_type` or `BakedModel#getRenderTypes`.
+- RGBBlocks generated models already use `minecraft:solid` for opaque blocks, `minecraft:cutout` for antiblock, and `minecraft:translucent` for glass/glass slabs/glass stairs/glass panes. `AntiblockBakedModel#getRenderTypes` delegates to the baked base model.
+- Vanilla `ModelBlockRenderer` asks `BlockColors` for tint values at the rendered block position. Terrain break particles also query block colors at their source position, while falling dust calls `FallingBlock#getDustColor`.
+- Client `sendBlockUpdated` routes through `LevelRenderer.blockChanged`; client `setBlocksDirty` routes through `LevelRenderer.setBlockDirty`. The existing `Block.UPDATE_CLIENTS` color sync remains the right low-noise chunk repaint trigger for color-only block entity updates.
+
+### Code changes
+
+- Removed the generic `RGBBlockColor` fallback from `pos` to `pos.below()`. That fallback could let a renderer tint one RGB block from a different block entity directly below it, especially in optimized chunk builders that rely on vanilla block-color contracts.
+- Kept the offset behavior constrained to `RGBConcretePowderBlock#getDustColor`, where vanilla actually asks the block for falling-dust color. The method now tries the actual dust position first, then the pre-existing one-block-up lookup, and sanitizes the returned RGB.
+- No Sodium, Iris, Embeddium, or Oculus APIs were hard-linked. The compatibility strategy remains vanilla/NeoForge render contracts: block/item color handlers, model JSON render types, `BakedModel#getRenderTypes`, and normal client block updates.
+
+### Advanced Colored Lighting conclusion
+
+- RGBBlocks can render arbitrary per-block RGB tint because that color is stored in block entity/component data and exposed through vanilla color handlers.
+- Minecraft's normal block light value is still scalar brightness, not dynamic per-block RGB light. Current Iris/ACL-style shader solutions map fixed block IDs to shader-side colors through shaderpack data, not arbitrary runtime block entity colors.
+- True dynamic RGB light emission for this mod would require a separate shader/Iris integration design that exports RGBBlocks block positions and colors to shader-accessible data. That is a feature project, not a renderer compatibility bug fix.
+
 ## Compatibility Findings
 
 ### NeoForge / Minecraft 1.21.1
@@ -166,7 +208,8 @@ Repository audited: local `RGBBlocks-fork` repository on branch `1.21.1`.
 
 - Block and item color handlers now sanitize missing/malformed data instead of returning raw component values.
 - Glass, glass slab, glass stair, and glass pane models use generated `minecraft:translucent` render types.
-- The fallback lookup in `RGBBlockColor` from `pos` to `pos.below()` remains because it may support contexts where tint lookup is requested from an offset render position. It was not removed without a focused visual repro.
+- `RGBBlockColor` now tints strictly from the block entity at the queried render position.
+- Concrete powder falling-dust color preserves its localized one-block-up fallback for vanilla dust particle positioning.
 
 ### Building/copy tools
 
@@ -177,10 +220,11 @@ Repository audited: local `RGBBlocks-fork` repository on branch `1.21.1`.
 
 - No live client gameplay pass was performed.
 - No two-player multiplayer synchronization pass was performed.
-- No Sodium/Iris/Rubidium/Oculus shader stack was installed or tested.
+- No Sodium, Iris, Embeddium, Oculus, or shader-pack runtime stack was installed or visually tested.
 - No WorldEdit, Building Gadgets, Construction Wand, Create, Chisel and Bits, or Structurize runtime tests were performed.
 - FramedBlocks and TOP were startup/datagen validated in the dev runtime, but their full user workflows were not manually exercised.
-- Advanced Colored Lighting support remains a separate feature request.
+- Advanced Colored Lighting / true dynamic RGB light emission remains a separate shader integration feature request.
+- No unit tests were added because the rendering-sensitive behavior depends on Minecraft client render and particle integration. This fork currently has no test source set; Gradle still reports `test` and `testJunit` as `NO-SOURCE`.
 
 ## Testing Performed
 
@@ -189,6 +233,8 @@ Repository audited: local `RGBBlocks-fork` repository on branch `1.21.1`.
 - `gradlew.bat runData` passed and wrote deterministic generated language/cache output.
 - `gradlew.bat build` passed after the NeoGradle run-argument cleanup, with the prior deprecation warning removed.
 - `gradlew.bat runServer` reached `Done` on a dedicated server dev runtime with RGBBlocks, FramedBlocks, and TOP loaded. The process was interrupted after startup because stdin did not deliver `stop` to the server console.
+- `gradlew.bat clean build` passed before the rendering compatibility pass.
+- `gradlew.bat spotlessApply build` passed after constraining render tint lookups.
 
 ## Commits Created
 
@@ -196,3 +242,4 @@ Repository audited: local `RGBBlocks-fork` repository on branch `1.21.1`.
 - `39a8fbd Accept command RGB color NBT`
 - `5d61038 Refresh generated language data`
 - `450ed1d Update NeoGradle run arguments`
+- `74811a7 Constrain RGB tint lookups`
