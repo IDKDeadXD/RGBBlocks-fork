@@ -4,6 +4,7 @@ import net.minecraft.world.level.material.MapColor;
 
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.stream.Stream;
 
 public class Color {
@@ -30,8 +31,36 @@ public class Color {
         return 0xFF000000 | (rgb & 0x00FFFFFF);
     }
 
+    public static int fromRGBComponents(int red, int green, int blue) {
+        return new Color(clampComponent(red), clampComponent(green), clampComponent(blue)).getRGB();
+    }
+
+    public static OptionalInt parseHexRGB(String value) {
+        String hex = value.trim();
+        if (hex.startsWith("#")) {
+            hex = hex.substring(1);
+        } else if (hex.startsWith("0x") || hex.startsWith("0X")) {
+            hex = hex.substring(2);
+        }
+        if (hex.length() == 8) {
+            hex = hex.substring(2);
+        }
+        if (hex.isEmpty() || hex.length() > 6) {
+            return OptionalInt.empty();
+        }
+        try {
+            return OptionalInt.of(sanitizeRGB(Integer.parseUnsignedInt(hex, 16)));
+        } catch (NumberFormatException ignored) {
+            return OptionalInt.empty();
+        }
+    }
+
     public static String toHexString(int rgb) {
         return String.format("%06X", sanitizeRGB(rgb) & 0x00FFFFFF);
+    }
+
+    private static int clampComponent(int component) {
+        return Math.max(0, Math.min(255, component));
     }
 
     private void testColorValueRange(int r, int g, int b, int a) {

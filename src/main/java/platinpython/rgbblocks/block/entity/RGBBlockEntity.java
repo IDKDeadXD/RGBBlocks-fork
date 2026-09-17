@@ -4,6 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NumericTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.Block;
@@ -68,7 +71,7 @@ public class RGBBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.loadAdditional(tag, provider);
-        setColor(tag.contains("color") ? tag.getInt("color") : Color.DEFAULT_RGB);
+        setColor(readColor(tag));
     }
 
     @Override
@@ -81,7 +84,7 @@ public class RGBBlockEntity extends BlockEntity {
     @Override
     public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider provider) {
         super.handleUpdateTag(tag, provider);
-        setColor(tag.contains("color") ? tag.getInt("color") : Color.DEFAULT_RGB);
+        setColor(readColor(tag));
     }
 
     @Override
@@ -92,9 +95,37 @@ public class RGBBlockEntity extends BlockEntity {
     @Override
     public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet, HolderLookup.Provider provider) {
         CompoundTag tag = packet.getTag();
-        int updatedColor = tag != null && tag.contains("color") ? tag.getInt("color") : Color.DEFAULT_RGB;
+        int updatedColor = tag != null ? readColor(tag) : Color.DEFAULT_RGB;
         if (setColor(updatedColor) && this.level != null) {
             this.level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
         }
+    }
+
+    private static int readColor(CompoundTag tag) {
+        if (tag.contains("color", Tag.TAG_ANY_NUMERIC)) {
+            return Color.sanitizeRGB(tag.getInt("color"));
+        }
+        if (tag.contains("color", Tag.TAG_STRING)) {
+            return Color.parseHexRGB(tag.getString("color")).orElse(Color.DEFAULT_RGB);
+        }
+        if (tag.contains("hex", Tag.TAG_STRING)) {
+            return Color.parseHexRGB(tag.getString("hex")).orElse(Color.DEFAULT_RGB);
+        }
+        if (tag.contains("rgb", Tag.TAG_INT_ARRAY)) {
+            int[] rgb = tag.getIntArray("rgb");
+            if (rgb.length >= 3) {
+                return Color.fromRGBComponents(rgb[0], rgb[1], rgb[2]);
+            }
+        }
+        Tag rgbTag = tag.get("rgb");
+        if (rgbTag instanceof ListTag rgb && rgb.size() >= 3 && rgb.get(0) instanceof NumericTag red
+            && rgb.get(1) instanceof NumericTag green && rgb.get(2) instanceof NumericTag blue) {
+            return Color.fromRGBComponents(red.getAsInt(), green.getAsInt(), blue.getAsInt());
+        }
+        if (tag.contains("red", Tag.TAG_ANY_NUMERIC) && tag.contains("green", Tag.TAG_ANY_NUMERIC)
+            && tag.contains("blue", Tag.TAG_ANY_NUMERIC)) {
+            return Color.fromRGBComponents(tag.getInt("red"), tag.getInt("green"), tag.getInt("blue"));
+        }
+        return Color.DEFAULT_RGB;
     }
 }
