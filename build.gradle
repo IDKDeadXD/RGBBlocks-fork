@@ -31,11 +31,11 @@ runs {
 
     server {
         systemProperty 'forge.enabledGameTestNamespaces', 'rgbblocks'
-        programArgument '--nogui'
+        arguments.add '--nogui'
     }
 
     data {
-        programArguments.addAll '--mod', 'rgbblocks', '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        arguments.addAll '--mod', 'rgbblocks', '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
     }
 }
 
