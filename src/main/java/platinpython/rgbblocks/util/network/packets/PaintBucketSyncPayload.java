@@ -10,6 +10,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.handling.IPayloadHandler;
 import platinpython.rgbblocks.RGBBlocks;
 import platinpython.rgbblocks.item.PaintBucketItem;
+import platinpython.rgbblocks.util.Color;
 import platinpython.rgbblocks.util.registries.DataComponentRegistry;
 
 public record PaintBucketSyncPayload(int color, boolean isRGBSelected) implements CustomPacketPayload {
@@ -29,7 +30,7 @@ public record PaintBucketSyncPayload(int color, boolean isRGBSelected) implement
         public void handle(PaintBucketSyncPayload message, IPayloadContext context) {
             ItemStack stack = context.player().getMainHandItem();
             if (stack.getItem() instanceof PaintBucketItem) {
-                stack.set(DataComponentRegistry.COLOR, message.color);
+                stack.set(DataComponentRegistry.COLOR, Color.sanitizeRGB(message.color));
                 stack.set(DataComponentRegistry.RGB_SELECTED, message.isRGBSelected);
             }
         }

@@ -30,8 +30,8 @@ public class ColorSelectScreen extends Screen {
 
     public static final double MIN_VALUE = 0.0D;
     public static final double MAX_VALUE_RGB = 255.0D;
-    public static final double MAX_VALUE_HUE = 360.0D;
-    public static final double MAX_VALUE_SB = 100.0D;
+    public static final double MAX_VALUE_HUE = Color.MAX_VALUE_HUE;
+    public static final double MAX_VALUE_SB = Color.MAX_VALUE_SB;
 
     private boolean isRGBSelected;
 
@@ -298,7 +298,7 @@ public class ColorSelectScreen extends Screen {
 
     @Override
     public void onClose() {
-        PacketDistributor.sendToServer(new PaintBucketSyncPayload(getColor(), isRGBSelected));
+        PacketDistributor.sendToServer(new PaintBucketSyncPayload(Color.sanitizeRGB(getColor()), isRGBSelected));
         super.onClose();
     }
 }

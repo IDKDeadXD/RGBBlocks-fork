@@ -22,6 +22,7 @@ import net.minecraft.world.item.crafting.ShapelessRecipe;
 import net.neoforged.neoforge.network.codec.NeoForgeStreamCodecs;
 import platinpython.rgbblocks.item.PaintBucketItem;
 import platinpython.rgbblocks.item.RGBBlockItem;
+import platinpython.rgbblocks.util.Color;
 import platinpython.rgbblocks.util.registries.DataComponentRegistry;
 import platinpython.rgbblocks.util.registries.RecipeSerializerRegistry;
 
@@ -59,8 +60,10 @@ public class ShapelessDurabilityAwarePaintBucketRecipe extends ShapelessRecipe {
         for (int i = 0; i < nonnulllist.size(); i++) {
             ItemStack item = craftingInput.getItem(i);
             if (item.getItem() instanceof PaintBucketItem) {
-                if (item.getOrDefault(DataComponentRegistry.COLOR, -1)
-                    .equals(blockStack.getOrDefault(DataComponentRegistry.COLOR, -1))) {
+                int bucketColor = Color.sanitizeRGB(item.getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB));
+                int blockColor =
+                    Color.sanitizeRGB(blockStack.getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB));
+                if (bucketColor == blockColor) {
                     nonnulllist.set(i, item.copy());
                 } else if (item.getDamageValue() == item.getMaxDamage() - 1) {
                     nonnulllist.set(i, new ItemStack(Items.BUCKET));
@@ -77,10 +80,11 @@ public class ShapelessDurabilityAwarePaintBucketRecipe extends ShapelessRecipe {
 
     @Override
     public ItemStack assemble(CraftingInput craftingInput, HolderLookup.Provider provider) {
-        int color = 0;
+        int color = Color.DEFAULT_RGB;
         for (int i = 0; i < craftingInput.size(); i++) {
             if (craftingInput.getItem(i).getItem() instanceof PaintBucketItem) {
-                color = craftingInput.getItem(i).getOrDefault(DataComponentRegistry.COLOR, -1);
+                color = Color
+                    .sanitizeRGB(craftingInput.getItem(i).getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB));
                 break;
             }
         }

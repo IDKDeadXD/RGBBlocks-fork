@@ -7,6 +7,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 import platinpython.rgbblocks.block.entity.RGBBlockEntity;
+import platinpython.rgbblocks.util.Color;
 
 public class RGBBlockColor implements BlockColor {
     public int getColor(
@@ -16,19 +17,19 @@ public class RGBBlockColor implements BlockColor {
         int tintIndex
     ) {
         if (blockDisplayReader == null || blockPos == null) {
-            return -1;
+            return Color.DEFAULT_RGB;
         }
         BlockEntity blockEntity = blockDisplayReader.getBlockEntity(blockPos);
         if (blockEntity == null) {
             blockEntity = blockDisplayReader.getBlockEntity(blockPos.below());
             if (blockEntity == null) {
-                return -1;
+                return Color.DEFAULT_RGB;
             }
         }
         if (blockEntity instanceof RGBBlockEntity rgbBlockEntity) {
-            return rgbBlockEntity.getColor();
+            return Color.sanitizeRGB(rgbBlockEntity.getColor());
         } else {
-            return -1;
+            return Color.DEFAULT_RGB;
         }
     }
 }

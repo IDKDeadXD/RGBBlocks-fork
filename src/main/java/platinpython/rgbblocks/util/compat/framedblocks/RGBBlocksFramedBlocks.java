@@ -8,6 +8,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import platinpython.rgbblocks.RGBBlocks;
+import platinpython.rgbblocks.util.Color;
 import platinpython.rgbblocks.util.registries.DataComponentRegistry;
 import xfacthd.framedblocks.api.block.blockentity.FramedBlockEntity;
 import xfacthd.framedblocks.api.camo.CamoContainerFactory;
@@ -42,7 +43,7 @@ public class RGBBlocksFramedBlocks {
         if (!context.getPlayer().isShiftKeyDown()) {
             return InteractionResult.PASS;
         }
-        context.getItemInHand().set(DataComponentRegistry.COLOR, camoContainer.color);
+        context.getItemInHand().set(DataComponentRegistry.COLOR, Color.sanitizeRGB(camoContainer.color));
         return InteractionResult.SUCCESS;
     }
 }

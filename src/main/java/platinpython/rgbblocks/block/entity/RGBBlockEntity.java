@@ -15,17 +15,28 @@ import platinpython.rgbblocks.util.registries.BlockEntityRegistry;
 import platinpython.rgbblocks.util.registries.DataComponentRegistry;
 
 public class RGBBlockEntity extends BlockEntity {
-    private int color;
-    private MapColor mapColor = MapColor.NONE;
+    private int color = Color.DEFAULT_RGB;
+    private MapColor mapColor = Color.getNearestMapColor(Color.DEFAULT_RGB);
 
     public RGBBlockEntity(BlockPos pos, BlockState state) {
         super(BlockEntityRegistry.RGB.get(), pos, state);
     }
 
-    public void setColor(int color) {
-        this.color = new Color(color).getRGB();
+    public boolean setColor(int color) {
+        int sanitizedColor = Color.sanitizeRGB(color);
+        if (this.color == sanitizedColor) {
+            return false;
+        }
+        this.color = sanitizedColor;
         this.mapColor = Color.getNearestMapColor(this.color);
         setChanged();
+        return true;
+    }
+
+    public void setColorAndSync(int color) {
+        if (setColor(color) && this.level != null) {
+            this.level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
     }
 
     public int getColor() {
@@ -39,13 +50,13 @@ public class RGBBlockEntity extends BlockEntity {
     @Override
     protected void applyImplicitComponents(DataComponentInput componentInput) {
         super.applyImplicitComponents(componentInput);
-        this.color = componentInput.getOrDefault(DataComponentRegistry.COLOR, -1);
+        setColor(componentInput.getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB));
     }
 
     @Override
     protected void collectImplicitComponents(DataComponentMap.Builder builder) {
         super.collectImplicitComponents(builder);
-        builder.set(DataComponentRegistry.COLOR, this.color);
+        builder.set(DataComponentRegistry.COLOR, Color.sanitizeRGB(this.color));
     }
 
     @Override
@@ -57,20 +68,20 @@ public class RGBBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider provider) {
         super.loadAdditional(tag, provider);
-        setColor(tag.getInt("color"));
+        setColor(tag.contains("color") ? tag.getInt("color") : Color.DEFAULT_RGB);
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider provider) {
         CompoundTag tag = super.getUpdateTag(provider);
-        tag.putInt("color", color);
+        tag.putInt("color", Color.sanitizeRGB(color));
         return tag;
     }
 
     @Override
     public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider provider) {
         super.handleUpdateTag(tag, provider);
-        setColor(tag.getInt("color"));
+        setColor(tag.contains("color") ? tag.getInt("color") : Color.DEFAULT_RGB);
     }
 
     @Override
@@ -80,9 +91,10 @@ public class RGBBlockEntity extends BlockEntity {
 
     @Override
     public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet, HolderLookup.Provider provider) {
-        setColor(packet.getTag().getInt("color"));
-        if (this.level != null) {
-            this.level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_ALL_IMMEDIATE);
+        CompoundTag tag = packet.getTag();
+        int updatedColor = tag != null && tag.contains("color") ? tag.getInt("color") : Color.DEFAULT_RGB;
+        if (setColor(updatedColor) && this.level != null) {
+            this.level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
         }
     }
 }

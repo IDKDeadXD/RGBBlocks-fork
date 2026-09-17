@@ -21,6 +21,7 @@ import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
 import platinpython.rgbblocks.block.entity.RGBBlockEntity;
 import platinpython.rgbblocks.entity.RGBFallingBlockEntity;
+import platinpython.rgbblocks.util.Color;
 import platinpython.rgbblocks.util.registries.BlockRegistry;
 
 public class RGBConcretePowderBlock extends ConcretePowderBlock implements EntityBlock {
@@ -58,7 +59,7 @@ public class RGBConcretePowderBlock extends ConcretePowderBlock implements Entit
                 state.hasProperty(BlockStateProperties.WATERLOGGED)
                     ? state.setValue(BlockStateProperties.WATERLOGGED, Boolean.FALSE)
                     : state,
-                blockEntity instanceof RGBBlockEntity rgbBlockEntity ? rgbBlockEntity.getColor() : 0
+                blockEntity instanceof RGBBlockEntity rgbBlockEntity ? rgbBlockEntity.getColor() : Color.DEFAULT_RGB
             );
             level.setBlock(pos, state.getFluidState().createLegacyBlock(), Block.UPDATE_ALL);
             level.addFreshEntity(fallingBlockEntity);
@@ -86,7 +87,7 @@ public class RGBConcretePowderBlock extends ConcretePowderBlock implements Entit
         super.onLand(level, pos, state, replaceableState, fallingBlock);
         if (fallingBlock instanceof RGBFallingBlockEntity rgbFallingBlock) {
             if (level.getBlockEntity(pos) instanceof RGBBlockEntity rgbBlockEntity) {
-                rgbBlockEntity.setColor(rgbFallingBlock.getColor());
+                rgbBlockEntity.setColorAndSync(rgbFallingBlock.getColor());
             }
         }
     }

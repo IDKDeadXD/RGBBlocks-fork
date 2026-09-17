@@ -12,11 +12,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 import org.jspecify.annotations.Nullable;
+import platinpython.rgbblocks.util.Color;
 import platinpython.rgbblocks.util.registries.DataComponentRegistry;
 import platinpython.rgbblocks.util.registries.EntityRegistry;
 
 public class RGBFallingBlockEntity extends FallingBlockEntity implements IEntityWithComplexSpawn {
-    private int color;
+    private int color = Color.DEFAULT_RGB;
 
     public RGBFallingBlockEntity(EntityType<? extends FallingBlockEntity> entityType, Level level) {
         super(entityType, level);
@@ -32,7 +33,7 @@ public class RGBFallingBlockEntity extends FallingBlockEntity implements IEntity
         this.yo = y;
         this.zo = z;
         this.setStartPos(this.blockPosition());
-        this.color = color;
+        this.color = Color.sanitizeRGB(color);
     }
 
     public int getColor() {
@@ -54,7 +55,7 @@ public class RGBFallingBlockEntity extends FallingBlockEntity implements IEntity
     @Override
     protected void readAdditionalSaveData(CompoundTag compound) {
         super.readAdditionalSaveData(compound);
-        color = compound.getInt("color");
+        color = compound.contains("color") ? Color.sanitizeRGB(compound.getInt("color")) : Color.DEFAULT_RGB;
     }
 
     @Override
@@ -65,7 +66,7 @@ public class RGBFallingBlockEntity extends FallingBlockEntity implements IEntity
 
     @Override
     public void readSpawnData(RegistryFriendlyByteBuf buffer) {
-        color = buffer.readInt();
+        color = Color.sanitizeRGB(buffer.readInt());
         blockState = Block.stateById(buffer.readVarInt());
     }
 }

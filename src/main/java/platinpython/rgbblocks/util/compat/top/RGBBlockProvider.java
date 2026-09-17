@@ -13,14 +13,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import platinpython.rgbblocks.RGBBlocks;
 import platinpython.rgbblocks.block.entity.RGBBlockEntity;
-import platinpython.rgbblocks.client.gui.screen.ColorSelectScreen;
 import platinpython.rgbblocks.util.Color;
 
-import java.util.HexFormat;
-
 public class RGBBlockProvider implements IProbeInfoProvider {
-    private static final HexFormat HEX_FORMAT = HexFormat.of().withUpperCase();
-
     @Override
     public void addProbeInfo(
         ProbeMode mode,
@@ -33,7 +28,7 @@ public class RGBBlockProvider implements IProbeInfoProvider {
         BlockEntity blockEntity = level.getBlockEntity(hitData.getPos());
         if (blockEntity instanceof RGBBlockEntity rgbBlockEntity) {
             if (mode == ProbeMode.NORMAL) {
-                info.text("#" + HEX_FORMAT.toHexDigits(rgbBlockEntity.getColor()).substring(2));
+                info.text("#" + Color.toHexString(rgbBlockEntity.getColor()));
             }
 
             if (mode == ProbeMode.EXTENDED) {
@@ -43,12 +38,12 @@ public class RGBBlockProvider implements IProbeInfoProvider {
                 MutableComponent blue = Component.translatable("gui.rgbblocks.blue").append(": " + color.getBlue());
                 info.text(red.append(", ").append(green).append(", ").append(blue));
                 float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue());
-                MutableComponent hue = Component.translatable("gui.rgbblocks.hue")
-                    .append(": " + Math.round(hsb[0] * ColorSelectScreen.MAX_VALUE_HUE));
+                MutableComponent hue =
+                    Component.translatable("gui.rgbblocks.hue").append(": " + Math.round(hsb[0] * Color.MAX_VALUE_HUE));
                 MutableComponent saturation = Component.translatable("gui.rgbblocks.saturation")
-                    .append(": " + Math.round(hsb[1] * ColorSelectScreen.MAX_VALUE_SB));
+                    .append(": " + Math.round(hsb[1] * Color.MAX_VALUE_SB));
                 MutableComponent brightness = Component.translatable("gui.rgbblocks.brightness")
-                    .append(": " + Math.round(hsb[2] * ColorSelectScreen.MAX_VALUE_SB));
+                    .append(": " + Math.round(hsb[2] * Color.MAX_VALUE_SB));
                 info.text(hue.append("°, ").append(saturation).append("%, ").append(brightness).append("%"));
             }
         }

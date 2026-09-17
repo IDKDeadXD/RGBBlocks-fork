@@ -7,6 +7,10 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 public class Color {
+    public static final int DEFAULT_RGB = 0xFFFFFFFF;
+    public static final double MAX_VALUE_HUE = 360.0D;
+    public static final double MAX_VALUE_SB = 100.0D;
+
     private final int value;
 
     public Color(int r, int g, int b) {
@@ -19,7 +23,15 @@ public class Color {
     }
 
     public Color(int rgb) {
-        value = 0xff000000 | rgb;
+        value = sanitizeRGB(rgb);
+    }
+
+    public static int sanitizeRGB(int rgb) {
+        return 0xFF000000 | (rgb & 0x00FFFFFF);
+    }
+
+    public static String toHexString(int rgb) {
+        return String.format("%06X", sanitizeRGB(rgb) & 0x00FFFFFF);
     }
 
     private void testColorValueRange(int r, int g, int b, int a) {

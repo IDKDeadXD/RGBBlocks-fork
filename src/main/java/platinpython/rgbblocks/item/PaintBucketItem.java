@@ -15,12 +15,10 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.fml.ModList;
+import platinpython.rgbblocks.RGBBlocks;
 import platinpython.rgbblocks.block.entity.RGBBlockEntity;
-import platinpython.rgbblocks.client.gui.screen.ColorSelectScreen;
-import platinpython.rgbblocks.util.ClientUtils;
 import platinpython.rgbblocks.util.Color;
 import platinpython.rgbblocks.util.compat.framedblocks.RGBBlocksFramedBlocks;
 import platinpython.rgbblocks.util.registries.DataComponentRegistry;
@@ -43,7 +41,7 @@ public class PaintBucketItem extends Item {
         if (stack.has(DataComponents.CUSTOM_DATA)) {
             stack.update(DataComponents.CUSTOM_DATA, CustomData.EMPTY, customData -> customData.update(tag -> {
                 if (tag.contains("color")) {
-                    stack.set(DataComponentRegistry.COLOR, tag.getInt("color"));
+                    stack.set(DataComponentRegistry.COLOR, Color.sanitizeRGB(tag.getInt("color")));
                     tag.remove("color");
                 }
                 if (tag.contains("isRGBSelected")) {
@@ -56,22 +54,22 @@ public class PaintBucketItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flagIn) {
-        Color color = new Color(stack.getOrDefault(DataComponentRegistry.COLOR, -1));
-        if (ClientUtils.hasShiftDown()) {
+        Color color = new Color(stack.getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB));
+        tooltip.add(Component.literal("#" + Color.toHexString(color.getRGB())));
+        tooltip.add(Component.translatable("tooltip.rgbblocks.paint_bucket.copy"));
+        if (flagIn.isAdvanced()) {
             MutableComponent red = Component.translatable("gui.rgbblocks.red").append(": " + color.getRed());
             MutableComponent green = Component.translatable("gui.rgbblocks.green").append(": " + color.getGreen());
             MutableComponent blue = Component.translatable("gui.rgbblocks.blue").append(": " + color.getBlue());
             tooltip.add(red.append(", ").append(green).append(", ").append(blue));
             float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue());
-            MutableComponent hue = Component.translatable("gui.rgbblocks.hue")
-                .append(": " + Math.round(hsb[0] * ColorSelectScreen.MAX_VALUE_HUE));
+            MutableComponent hue =
+                Component.translatable("gui.rgbblocks.hue").append(": " + Math.round(hsb[0] * Color.MAX_VALUE_HUE));
             MutableComponent saturation = Component.translatable("gui.rgbblocks.saturation")
-                .append(": " + Math.round(hsb[1] * ColorSelectScreen.MAX_VALUE_SB));
+                .append(": " + Math.round(hsb[1] * Color.MAX_VALUE_SB));
             MutableComponent brightness = Component.translatable("gui.rgbblocks.brightness")
-                .append(": " + Math.round(hsb[2] * ColorSelectScreen.MAX_VALUE_SB));
+                .append(": " + Math.round(hsb[2] * Color.MAX_VALUE_SB));
             tooltip.add(hue.append("°, ").append(saturation).append("%, ").append(brightness).append("%"));
-        } else {
-            tooltip.add(Component.literal("#" + Integer.toHexString(color.getRGB()).substring(2)));
         }
     }
 
@@ -89,8 +87,8 @@ public class PaintBucketItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player playerIn, InteractionHand handIn) {
         if (handIn == InteractionHand.MAIN_HAND && playerIn.isShiftKeyDown()) {
             if (level.isClientSide) {
-                ClientUtils.openColorSelectScreen(
-                    playerIn.getMainHandItem().getOrDefault(DataComponentRegistry.COLOR, -1),
+                openColorSelectScreen(
+                    playerIn.getMainHandItem().getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB),
                     playerIn.getMainHandItem().getOrDefault(DataComponentRegistry.RGB_SELECTED, true)
                 );
                 return new InteractionResultHolder<>(InteractionResult.SUCCESS, playerIn.getMainHandItem());
@@ -103,24 +101,20 @@ public class PaintBucketItem extends Item {
     public InteractionResult useOn(UseOnContext context) {
         BlockEntity blockEntity = context.getLevel().getBlockEntity(context.getClickedPos());
         if (blockEntity instanceof RGBBlockEntity rgbBlockEntity) {
-            if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown()) {
+            Player player = context.getPlayer();
+            if (player != null && player.isShiftKeyDown()) {
                 context.getItemInHand().set(DataComponentRegistry.COLOR, rgbBlockEntity.getColor());
             } else {
-                int color = context.getItemInHand().getOrDefault(DataComponentRegistry.COLOR, -1);
-                if (!context.getPlayer().isCreative() && color != rgbBlockEntity.getColor()) {
+                int color = Color
+                    .sanitizeRGB(context.getItemInHand().getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB));
+                if (player != null && !player.isCreative() && color != rgbBlockEntity.getColor()) {
                     if (context.getItemInHand().getDamageValue() == context.getItemInHand().getMaxDamage() - 1) {
-                        context.getPlayer().setItemInHand(context.getHand(), new ItemStack(Items.BUCKET));
+                        player.setItemInHand(context.getHand(), new ItemStack(Items.BUCKET));
                     } else {
-                        context.getItemInHand()
-                            .hurtAndBreak(1, context.getPlayer(), LivingEntity.getSlotForHand(context.getHand()));
+                        context.getItemInHand().hurtAndBreak(1, player, LivingEntity.getSlotForHand(context.getHand()));
                     }
                 }
-                rgbBlockEntity.setColor(color);
-                context.getLevel()
-                    .sendBlockUpdated(
-                        context.getClickedPos(), blockEntity.getBlockState(), blockEntity.getBlockState(),
-                        Block.UPDATE_ALL_IMMEDIATE
-                    );
+                rgbBlockEntity.setColorAndSync(color);
             }
             return InteractionResult.SUCCESS;
         }
@@ -133,5 +127,15 @@ public class PaintBucketItem extends Item {
     @Override
     public boolean isBookEnchantable(ItemStack stack, ItemStack book) {
         return false;
+    }
+
+    private static void openColorSelectScreen(int color, boolean isRGBSelected) {
+        try {
+            Class<?> clientUtils = Class.forName("platinpython.rgbblocks.util.ClientUtils");
+            clientUtils.getMethod("openColorSelectScreen", int.class, boolean.class)
+                .invoke(null, Color.sanitizeRGB(color), isRGBSelected);
+        } catch (ReflectiveOperationException e) {
+            RGBBlocks.LOGGER.error("Failed to open RGB Blocks paint bucket color selector", e);
+        }
     }
 }

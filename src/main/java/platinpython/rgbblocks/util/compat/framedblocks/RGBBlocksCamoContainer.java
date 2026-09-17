@@ -44,7 +44,7 @@ public class RGBBlocksCamoContainer extends AbstractBlockCamoContainer<RGBBlocks
 
     protected RGBBlocksCamoContainer(BlockState state, int color) {
         super(state);
-        this.color = color;
+        this.color = Color.sanitizeRGB(color);
         this.mapColor = Color.getNearestMapColor(this.color);
     }
 
@@ -109,7 +109,9 @@ public class RGBBlocksCamoContainer extends AbstractBlockCamoContainer<RGBBlocks
             Player player,
             ItemStack stack
         ) {
-            return new RGBBlocksCamoContainer(state, stack.getOrDefault(DataComponentRegistry.COLOR, -1));
+            return new RGBBlocksCamoContainer(
+                state, stack.getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB)
+            );
         }
 
         @Override
@@ -181,14 +183,15 @@ public class RGBBlocksCamoContainer extends AbstractBlockCamoContainer<RGBBlocks
             ItemStack stack,
             InteractionHand hand
         ) {
-            if (!player.isCreative() && stack.getOrDefault(DataComponentRegistry.COLOR, -1) != camo.color) {
+            int color = Color.sanitizeRGB(stack.getOrDefault(DataComponentRegistry.COLOR, Color.DEFAULT_RGB));
+            if (!player.isCreative() && color != camo.color) {
                 if (stack.getDamageValue() == stack.getMaxDamage() - 1) {
                     player.setItemInHand(hand, new ItemStack(Items.BUCKET));
                 } else {
                     player.getItemInHand(hand).hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
                 }
             }
-            return new RGBBlocksCamoContainer(camo.getState(), stack.getOrDefault(DataComponentRegistry.COLOR, -1));
+            return new RGBBlocksCamoContainer(camo.getState(), color);
         }
 
         @Override
