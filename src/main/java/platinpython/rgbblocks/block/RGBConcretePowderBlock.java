@@ -94,9 +94,12 @@ public class RGBConcretePowderBlock extends ConcretePowderBlock implements Entit
 
     @Override
     public int getDustColor(BlockState blockState, BlockGetter blockReader, BlockPos blockPos) {
-        BlockEntity blockEntity = blockReader.getBlockEntity(blockPos.above());
+        BlockEntity blockEntity = blockReader.getBlockEntity(blockPos);
+        if (!(blockEntity instanceof RGBBlockEntity)) {
+            blockEntity = blockReader.getBlockEntity(blockPos.above());
+        }
         if (blockEntity instanceof RGBBlockEntity rgbBlockEntity) {
-            return rgbBlockEntity.getColor();
+            return Color.sanitizeRGB(rgbBlockEntity.getColor());
         }
         return super.getDustColor(blockState, blockReader, blockPos);
     }

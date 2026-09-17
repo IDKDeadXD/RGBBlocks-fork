@@ -20,12 +20,6 @@ public class RGBBlockColor implements BlockColor {
             return Color.DEFAULT_RGB;
         }
         BlockEntity blockEntity = blockDisplayReader.getBlockEntity(blockPos);
-        if (blockEntity == null) {
-            blockEntity = blockDisplayReader.getBlockEntity(blockPos.below());
-            if (blockEntity == null) {
-                return Color.DEFAULT_RGB;
-            }
-        }
         if (blockEntity instanceof RGBBlockEntity rgbBlockEntity) {
             return Color.sanitizeRGB(rgbBlockEntity.getColor());
         } else {
